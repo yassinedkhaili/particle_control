@@ -82,6 +82,17 @@
       overflow-y: auto;
     }
 
+    #moduleStatus {
+      padding: 15px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+      font-family: monospace;
+      width: 100%;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+
     /* Responsive */
     @media(max-width:400px){
       #controlHeader {
@@ -116,16 +127,22 @@
       </div>
     </div>
 
+    <!-- Module Status -->
+    <div id="moduleStatus">
+      Loading module status...
+    </div>
+
     <!-- Result/Response -->
     <div id="result"></div>
   </div>
 
   <script>
-    
+    // === Replace These ===
     const DEVICE_ID = "e00fce68a0ad7b4549751e82";
     const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60";
-    const FUNCTION_NAME = "Box_Lock";
+    const FUNCTION_NAME = "Lock_Box";
     const PAGE_PASSWORD = "Nuwiel 123";
+    // =====================
 
     let isLocked = false;
 
@@ -200,9 +217,35 @@
         .catch(err => console.error(err));
     }
 
-    // Auto-refresh every 5 seconds
+    // Fetch module/device status
+    function fetchModuleStatus(){
+      fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}?access_token=${ACCESS_TOKEN}`)
+        .then(res => res.json())
+        .then(data => {
+          if(data && !data.error){
+            const statusDiv = document.getElementById("moduleStatus");
+            const connected = data.connected ? "Online ✅" : "Offline ❌";
+            const lastHeard = data.last_heard || "--";
+            const name = data.name || "--";
+
+            statusDiv.innerHTML = `
+              <b>Name:</b> ${name}<br>
+              <b>Connected:</b> ${connected}<br>
+              <b>Last Heard:</b> ${lastHeard}<br>
+              <b>Device ID:</b> ${DEVICE_ID}
+            `;
+          }
+        })
+        .catch(err => {
+          document.getElementById("moduleStatus").innerText = "ERROR:\n" + err;
+        });
+    }
+
+    // Auto-refresh every few seconds
     setInterval(fetchBoxLockState, 5000);
+    setInterval(fetchModuleStatus, 10000);
     fetchBoxLockState();
+    fetchModuleStatus();
   </script>
 </body>
 </html>
