@@ -89,7 +89,7 @@
       overflow-y: auto;
     }
 
-    #moduleStatus, #gatewayBattery, #temperature {
+    #moduleStatus {
       padding: 15px;
       background: #fff;
       border-radius: 10px;
@@ -147,11 +147,10 @@
   <script>
     
     const DEVICE_ID = "e00fce68a0ad7b4549751e82";
-    const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60";
-    const FUNCTION_NAME = "Lock_Box";
+    const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60 ";
+    const FUNCTION_NAME = "LoCK_BOX";
     const PAGE_PASSWORD = "Nuwiel 123";
-    const BATTERY_VARIABLE = "batt";     // Particle variable
-    const TEMP_VARIABLE = "temperature";         // Particle variable
+    
 
     let deviceOnline = false;
 
@@ -210,7 +209,7 @@
       }
     }
 
-    // Fetch latest boxlock state from Particle event
+    // Fetch latest BoxLock state from boxlock event
     function fetchBoxLockState(){
       fetch(`https://api.particle.io/v1/devices/events/boxlock?access_token=${ACCESS_TOKEN}&limit=1`)
         .then(res => res.json())
@@ -258,34 +257,36 @@
         });
     }
 
-    // Fetch Particle variable
-    function fetchVariable(variableName, elementId, suffix=""){
-      fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}/${variableName}?access_token=${ACCESS_TOKEN}`)
+    // Fetch battery and temperature from latest loc event
+    function fetchBatteryAndTemp(){
+      fetch(`https://api.particle.io/v1/devices/events/loc?access_token=${ACCESS_TOKEN}&limit=1`)
         .then(res => res.json())
-        .then(data=>{
-          const elem = document.getElementById(elementId);
-          if(data && data.result != undefined){
-            elem.innerHTML = `<b>${elementId.replace(/([A-Z])/g, ' $1')}:</b> ${data.result} ${suffix}`;
-          } else {
-            elem.innerHTML = `<b>${elementId.replace(/([A-Z])/g, ' $1')}:</b> --`;
+        .then(event => {
+          if(event && event.body && event.body.length>0){
+            const dataStr = event.body[0].data;      // string containing JSON
+            const dataJson = JSON.parse(dataStr);    // parse JSON
+            const loc = dataJson.loc;
+
+            if(loc){
+              const batt = loc.batt;
+              const temp = loc.temp;
+              document.getElementById("gatewayBattery").innerText = `Battery: ${batt} %`;
+              document.getElementById("temperature").innerText = `Temp: ${temp} °C`;
+            }
           }
         })
-        .catch(err=>{
-          document.getElementById(elementId).innerText = "Error fetching " + elementId;
-        });
+        .catch(err => console.error("Error fetching battery/temp:", err));
     }
 
     // Auto-refresh
     setInterval(fetchBoxLockState, 5000);
     setInterval(fetchModuleStatus, 10000);
-    setInterval(()=>{ fetchVariable(BATTERY_VARIABLE,"gatewayBattery","%"); }, 10000);
-    setInterval(()=>{ fetchVariable(TEMP_VARIABLE,"temperature","°C"); }, 10000);
+    setInterval(fetchBatteryAndTemp, 10000);
 
     // Initial fetch
     fetchBoxLockState();
     fetchModuleStatus();
-    fetchVariable(BATTERY_VARIABLE,"gatewayBattery","%");
-    fetchVariable(TEMP_VARIABLE,"temperature","°C");
+    fetchBatteryAndTemp();
 
   </script>
 </body>
