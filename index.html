@@ -87,7 +87,7 @@
       overflow-y: auto;
     }
 
-    #moduleStatus {
+    #moduleStatus, #gatewayBattery {
       padding: 15px;
       background: #fff;
       border-radius: 10px;
@@ -125,7 +125,7 @@
 
     <!-- Unified Header: Button + BoxLock State -->
     <div id="controlHeader">
-      <button class="button" id="toggleButton" onclick="toggleState()">Lock</button>
+      <button class="button" id="toggleButton" onclick="toggleState()">Lock/Unlock</button>
       <div style="display:flex; align-items:center;">
         <img id="boxIcon" src="https://img.icons8.com/ios-filled/50/000000/lock--v1.png"/>
         <span id="boxStatus" style="font-size: 20px; font-weight:bold; margin-left:10px;">--</span>
@@ -138,7 +138,7 @@
     </div>
 
     <!-- Gateway Battery -->
-    <div id="gatewayBattery" style="padding:15px; background:#fff; border-radius:10px; box-shadow:0 3px 10px rgba(0,0,0,0.1); font-family: monospace; width:100%; text-align:left; margin-bottom:20px;">
+    <div id="gatewayBattery">
       Loading gateway battery...
     </div>
 
@@ -147,13 +147,14 @@
   </div>
 
   <script>
-    
+    // === Replace These ===
     const DEVICE_ID = "e00fce68a0ad7b4549751e82";
     const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60 ";
     const FUNCTION_NAME = "Lock_Box";
     const PAGE_PASSWORD = "Nuwiel 123";
+    const BATTERY_VARIABLE = "batteryLevel"; // Particle variable for battery SOC
+    // =====================
 
-    let isLocked = false;
     let deviceOnline = false;
 
     // Password check
@@ -189,49 +190,44 @@
       });
     }
 
-    // Toggle Lock/Unlock
+    // Toggle Lock/Unlock (just sends command, does not set status)
     function toggleState(){
-      const command = isLocked ? "unlock" : "lock";
-      callFunction(FUNCTION_NAME, command).then(()=>{
-        isLocked = !isLocked;
-        updateButtonAndState();
-      });
+      callFunction(FUNCTION_NAME, "toggle");
     }
 
-    // Update button and icon according to state
-    function updateButtonAndState(){
-      const btn = document.getElementById("toggleButton");
+    // Update BoxLock icon and text based on latest event
+    function updateBoxLockState(state){
       const icon = document.getElementById("boxIcon");
       const status = document.getElementById("boxStatus");
 
-      if(isLocked){
-        btn.innerText = "Unlock";
-        btn.style.background = "#28a745"; // green
+      if(state === "locked"){
         icon.src = "https://img.icons8.com/ios-filled/50/FF0000/lock--v1.png";
         status.innerText = "Locked";
-      } else {
-        btn.innerText = "Lock";
-        btn.style.background = "#0066ff"; // blue
+      } else if(state === "unlocked"){
         icon.src = "https://img.icons8.com/ios-filled/50/00AA00/unlock--v1.png";
         status.innerText = "Unlocked";
+      } else {
+        icon.src = "https://img.icons8.com/ios-filled/50/000000/lock--v1.png";
+        status.innerText = "--";
       }
-
-      // Disable button if offline
-      btn.disabled = !deviceOnline;
     }
 
-    // Fetch latest boxlock state
+    // Fetch latest boxlock state from Particle event
     function fetchBoxLockState(){
       fetch(`https://api.particle.io/v1/devices/events/boxlock?access_token=${ACCESS_TOKEN}&limit=1`)
         .then(res => res.json())
         .then(data => {
           if(data && data.body && data.body.length>0){
             const latest = data.body[0].data; // "locked" or "unlocked"
-            isLocked = latest === "locked";
-            updateButtonAndState();
+            updateBoxLockState(latest);
+          } else {
+            updateBoxLockState("--");
           }
         })
-        .catch(err => console.error(err));
+        .catch(err => {
+          console.error(err);
+          updateBoxLockState("--");
+        });
     }
 
     // Fetch module/device status
@@ -255,23 +251,23 @@
             deviceOnline = false;
             statusDiv.innerHTML = "Device status unavailable.";
           }
-          updateButtonAndState();
+          document.getElementById("toggleButton").disabled = !deviceOnline;
         })
         .catch(err => {
           deviceOnline = false;
           document.getElementById("moduleStatus").innerText = "ERROR:\n" + err;
-          updateButtonAndState();
+          document.getElementById("toggleButton").disabled = true;
         });
     }
 
-    // Fetch gateway battery
+    // Fetch gateway battery from Particle variable
     function fetchGatewayBattery(){
-      fetch(`https://api.particle.io/v1/devices/events/gateway_battery?access_token=${ACCESS_TOKEN}&limit=1`)
-        .then(res=>res.json())
+      fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}/${BATTERY_VARIABLE}?access_token=${ACCESS_TOKEN}`)
+        .then(res => res.json())
         .then(data=>{
           const batteryDiv = document.getElementById("gatewayBattery");
-          if(data && data.body && data.body.length>0){
-            batteryDiv.innerHTML = `<b>Gateway Battery:</b> ${data.body[0].data} %`;
+          if(data && data.result != undefined){
+            batteryDiv.innerHTML = `<b>Gateway Battery:</b> ${data.result} %`;
           } else {
             batteryDiv.innerHTML = `<b>Gateway Battery:</b> -- %`;
           }
