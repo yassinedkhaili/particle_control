@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Particle Cloud Control Panel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 40px;
+      text-align: center;
+    }
+    .button {
+      background: #007bff;
+      color: white;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      margin: 15px;
+    }
+    .button:hover {
+      background: #005fcc;
+    }
+    #result {
+      margin-top: 30px;
+      padding: 15px;
+      background: #fff;
+      border-radius: 8px;
+      display: inline-block;
+      width: 60%;
+      text-align: left;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>Particle Cloud Control Panel</h1>
+  <p>Click a button to trigger a function on your Particle device.</p>
+
+  <button class="button" onclick="callFunction('Lock_Box')">
+    Trigger Function
+  </button>
+
+  <br><br>
+
+  <h3>Send Custom Command</h3>
+  <input id="customArg" type="text" placeholder="Enter argument"
+    style="padding:10px; font-size:16px; width:250px;">
+  <button class="button" onclick="sendCustom()">
+    Send
+  </button>
+
+  <div id="result"></div>
+
+  <script>
+    const DEVICE_ID = "e00fce68a0ad7b4549751e82";
+    const ACCESS_TOKEN = "1be7eb98a208c94a3ce6e646699005bc36df8b2e"; 
+    const FUNCTION_NAME = "Lock_Box";
+
+    function callFunction(funcName, arg = "test") {
+      var url = `https://api.particle.io/v1/devices/${DEVICE_ID}/${funcName}`;
+
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: `arg=${arg}&access_token=${ACCESS_TOKEN}`
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById("result").innerText =
+          JSON.stringify(data, null, 2);
+      })
+      .catch(err => {
+        document.getElementById("result").innerText = "ERROR:\n" + err;
+      });
+    }
+
+    function sendCustom() {
+      const arg = document.getElementById("customArg").value;
+      callFunction(FUNCTION_NAME, arg);
+    }
+
+  </script>
+
+</body>
+</html>
