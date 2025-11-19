@@ -35,7 +35,7 @@
       color: #333;
     }
 
-    input[type="password"], input[type="text"] {
+    input[type="password"] {
       width: 90%;
       padding: 12px;
       margin: 10px 0;
@@ -48,24 +48,17 @@
       background: #0066ff;
       color: white;
       padding: 14px 25px;
-      font-size: 17px;
+      font-size: 18px;
       border: none;
       border-radius: 10px;
       cursor: pointer;
       width: 90%;
-      margin-top: 10px;
+      margin-top: 15px;
       transition: 0.2s;
     }
 
     .button:hover {
       background: #004bcc;
-    }
-
-    .secondaryBtn {
-      background: #28a745;
-    }
-    .secondaryBtn:hover {
-      background: #1c7e33;
     }
 
     #result {
@@ -97,11 +90,10 @@
   <div id="controlPanel">
     <h1>Particle Control Panel</h1>
 
-    <button class="button" onclick="callFunction(FUNCTION_NAME, 'unlock')">Unlock Box</button>
-    <button class="button" onclick="callFunction(FUNCTION_NAME, 'lock')">Lock Box</button>
-
-    <input id="customArg" type="text" placeholder="Custom argument">
-    <button class="button secondaryBtn" onclick="sendCustom()">Send Custom Command</button>
+    <!-- Single toggle button -->
+    <button class="button" id="toggleButton" onclick="toggleState()">
+      Toggle Lock
+    </button>
 
     <div id="result"></div>
   </div>
@@ -112,6 +104,10 @@
     const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60";
     const FUNCTION_NAME = "Lock_Box";
     const PAGE_PASSWORD = "Nuwiel 123";
+    
+
+    // Keep track of lock/unlock state locally
+    let isLocked = false;
 
     // Password Auth
     function checkPassword() {
@@ -125,29 +121,39 @@
       }
     }
 
-    function callFunction(funcName, arg = "test") {
-      var url = `https://api.particle.io/v1/devices/${DEVICE_ID}/${funcName}`;
+    function callFunction(funcName, arg) {
+      const url = `https://api.particle.io/v1/devices/${DEVICE_ID}/${funcName}`;
 
-      fetch(url, {
+      return fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `arg=${arg}&access_token=${ACCESS_TOKEN}`
       })
       .then(response => response.json())
       .then(data => {
         document.getElementById("result").innerText =
           JSON.stringify(data, null, 2);
+        return data;
       })
       .catch(err => {
         document.getElementById("result").innerText = "ERROR:\n" + err;
       });
     }
 
-    function sendCustom() {
-      const arg = document.getElementById("customArg").value;
-      callFunction(FUNCTION_NAME, arg);
+    // Toggle lock/unlock
+    function toggleState() {
+      const command = isLocked ? "unlock" : "lock";
+
+      callFunction(FUNCTION_NAME, command).then(() => {
+        isLocked = !isLocked;
+        updateButton();
+      });
+    }
+
+    function updateButton() {
+      const btn = document.getElementById("toggleButton");
+      btn.innerText = isLocked ? "Unlock" : "Lock";
+      btn.style.background = isLocked ? "#28a745" : "#0066ff";
     }
   </script>
 
