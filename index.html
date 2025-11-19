@@ -144,7 +144,6 @@
     const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60";
     const FUNCTION_NAME = "Lock_Box";
     const PAGE_PASSWORD = "Nuwiel 123";
-    const BOXLOCK_EVENT = "boxlock";
 
     let deviceOnline = false;
 
@@ -189,10 +188,10 @@
       const icon = document.getElementById("boxIcon");
       const status = document.getElementById("boxStatus");
 
-      if(state === "locked"){
+      if(state === true || state === 1){
         icon.src = "https://img.icons8.com/ios-filled/50/FF0000/lock--v1.png";
         status.innerText = "Locked";
-      } else if(state === "unlocked"){
+      } else if(state === false || state === 0){
         icon.src = "https://img.icons8.com/ios-filled/50/00AA00/unlock--v1.png";
         status.innerText = "Unlocked";
       } else {
@@ -201,23 +200,21 @@
       }
     }
 
-    // Subscribe to boxlock events
-    function subscribeBoxLock() {
-      const source = new EventSource(`https://api.particle.io/v1/devices/events/${BOXLOCK_EVENT}?access_token=${ACCESS_TOKEN}`);
-      source.onmessage = function(e) {
-        try {
-          const obj = JSON.parse(e.data);
-          if(obj && obj.data){
-            const data = JSON.parse(obj.data);
-            const lock = data.lck !== undefined ? data.lck : data.loc?.lck;
-            if(lock !== undefined){
-              updateBoxLockState(lock ? "locked" : "unlocked");
-            }
+    // Fetch box lock state from Particle variable
+    function fetchBoxLockState(){
+      fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}/boxLock?access_token=${ACCESS_TOKEN}`)
+        .then(res => res.json())
+        .then(data => {
+          if(data && data.result !== undefined){
+            updateBoxLockState(data.result);
+          } else {
+            updateBoxLockState("--");
           }
-        } catch(err) {
-          console.error("Error parsing boxlock event:", err);
-        }
-      };
+        })
+        .catch(err => {
+          console.error(err);
+          updateBoxLockState("--");
+        });
     }
 
     // Fetch module status
@@ -250,8 +247,8 @@
         });
     }
 
-    // Fetch battery level from cloud variable
-    function fetchBattery(){
+    // Fetch battery level from Particle variable
+    function fetchBatteryLevel(){
       fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}/batteryLevel?access_token=${ACCESS_TOKEN}`)
         .then(res => res.json())
         .then(data => {
@@ -261,20 +258,18 @@
             document.getElementById("gatewayBattery").innerText = "Battery: -- %";
           }
         })
-        .catch(err => {
-          console.error("Error fetching battery:", err);
-          document.getElementById("gatewayBattery").innerText = "Battery: -- %";
-        });
+        .catch(err => console.error("Error fetching battery:", err));
     }
 
     // Auto-refresh
+    setInterval(fetchBoxLockState, 5000);
     setInterval(fetchModuleStatus, 10000);
-    setInterval(fetchBattery, 10000);
+    setInterval(fetchBatteryLevel, 10000);
 
-    // Initial fetches
-    subscribeBoxLock();
+    // Initial fetch
+    fetchBoxLockState();
     fetchModuleStatus();
-    fetchBattery();
+    fetchBatteryLevel();
 
   </script>
 
