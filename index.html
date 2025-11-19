@@ -2,65 +2,128 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Particle Cloud Control Panel</title>
+  <title>Secure Particle Control Panel</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      padding: 40px;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #eef2f7;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #loginBox, #controlPanel {
+      background: #ffffff;
+      box-shadow: 0px 5px 20px rgba(0,0,0,0.15);
+      padding: 30px;
+      border-radius: 15px;
+      width: 350px;
       text-align: center;
+      display: none;
     }
+
+    #loginBox.active, #controlPanel.active {
+      display: block;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    input[type="password"], input[type="text"] {
+      width: 90%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #bbb;
+      font-size: 16px;
+    }
+
     .button {
-      background: #007bff;
+      background: #0066ff;
       color: white;
-      padding: 15px 30px;
+      padding: 14px 25px;
+      font-size: 17px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
-      font-size: 18px;
-      margin: 15px;
+      width: 90%;
+      margin-top: 10px;
+      transition: 0.2s;
     }
+
     .button:hover {
-      background: #005fcc;
+      background: #004bcc;
     }
+
+    .secondaryBtn {
+      background: #28a745;
+    }
+    .secondaryBtn:hover {
+      background: #1c7e33;
+    }
+
     #result {
-      margin-top: 30px;
+      margin-top: 20px;
       padding: 15px;
-      background: #fff;
-      border-radius: 8px;
-      display: inline-block;
-      width: 60%;
       text-align: left;
+      background: #f7f7f7;
+      border-radius: 10px;
       font-family: monospace;
       white-space: pre-wrap;
+      max-height: 250px;
+      overflow-y: auto;
     }
   </style>
 </head>
 
 <body>
 
-  <h1>Particle Cloud Control Panel</h1>
-  <p>Click a button to trigger a function on your Particle device.</p>
+  <!-- Password Login -->
+  <div id="loginBox" class="active">
+    <h1>Secure Access</h1>
+    <p>Please enter the password:</p>
+    <input id="passwordInput" type="password" placeholder="Password">
+    <button class="button" onclick="checkPassword()">Enter</button>
+    <p id="loginError" style="color:red; margin-top: 10px;"></p>
+  </div>
 
-  <button class="button" onclick="callFunction('Lock_Box')">
-    Trigger Function
-  </button>
+  <!-- Control Panel -->
+  <div id="controlPanel">
+    <h1>Particle Control Panel</h1>
 
-  <br><br>
+    <button class="button" onclick="callFunction(FUNCTION_NAME, 'unlock')">Unlock Box</button>
+    <button class="button" onclick="callFunction(FUNCTION_NAME, 'lock')">Lock Box</button>
 
-  <h3>Send Custom Command</h3>
-  <input id="customArg" type="text" placeholder="Enter argument"
-    style="padding:10px; font-size:16px; width:250px;">
-  <button class="button" onclick="sendCustom()">
-    Send
-  </button>
+    <input id="customArg" type="text" placeholder="Custom argument">
+    <button class="button secondaryBtn" onclick="sendCustom()">Send Custom Command</button>
 
-  <div id="result"></div>
+    <div id="result"></div>
+  </div>
 
   <script>
+    
     const DEVICE_ID = "e00fce68a0ad7b4549751e82";
-    const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60"; 
+    const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60";
     const FUNCTION_NAME = "Lock_Box";
+    const PAGE_PASSWORD = "Nuwiel 123";
+
+    // Password Auth
+    function checkPassword() {
+      const entered = document.getElementById("passwordInput").value;
+
+      if (entered === PAGE_PASSWORD) {
+        document.getElementById("loginBox").classList.remove("active");
+        document.getElementById("controlPanel").classList.add("active");
+      } else {
+        document.getElementById("loginError").innerText = "Incorrect password.";
+      }
+    }
 
     function callFunction(funcName, arg = "test") {
       var url = `https://api.particle.io/v1/devices/${DEVICE_ID}/${funcName}`;
@@ -86,7 +149,6 @@
       const arg = document.getElementById("customArg").value;
       callFunction(FUNCTION_NAME, arg);
     }
-
   </script>
 
 </body>
