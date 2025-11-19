@@ -59,6 +59,11 @@
       background: #004bcc;
     }
 
+    .button:disabled {
+      background: #bbb;
+      cursor: not-allowed;
+    }
+
     #controlHeader {
       display: flex;
       align-items: center;
@@ -132,6 +137,11 @@
       Loading module status...
     </div>
 
+    <!-- Gateway Battery -->
+    <div id="gatewayBattery" style="padding:15px; background:#fff; border-radius:10px; box-shadow:0 3px 10px rgba(0,0,0,0.1); font-family: monospace; width:100%; text-align:left; margin-bottom:20px;">
+      Loading gateway battery...
+    </div>
+
     <!-- Result/Response -->
     <div id="result"></div>
   </div>
@@ -139,11 +149,12 @@
   <script>
     
     const DEVICE_ID = "e00fce68a0ad7b4549751e82";
-    const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60";
+    const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60 ";
     const FUNCTION_NAME = "Lock_Box";
     const PAGE_PASSWORD = "Nuwiel 123";
 
     let isLocked = false;
+    let deviceOnline = false;
 
     // Password check
     function checkPassword() {
@@ -158,6 +169,10 @@
 
     // Call Particle function
     function callFunction(funcName, arg){
+      if(!deviceOnline){
+        alert("Device is offline. Cannot send command.");
+        return;
+      }
       const url = `https://api.particle.io/v1/devices/${DEVICE_ID}/${funcName}`;
       return fetch(url,{
         method: "POST",
@@ -200,9 +215,12 @@
         icon.src = "https://img.icons8.com/ios-filled/50/00AA00/unlock--v1.png";
         status.innerText = "Unlocked";
       }
+
+      // Disable button if offline
+      btn.disabled = !deviceOnline;
     }
 
-    // Fetch latest boxlock state from Particle Cloud
+    // Fetch latest boxlock state
     function fetchBoxLockState(){
       fetch(`https://api.particle.io/v1/devices/events/boxlock?access_token=${ACCESS_TOKEN}&limit=1`)
         .then(res => res.json())
@@ -221,29 +239,56 @@
       fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}?access_token=${ACCESS_TOKEN}`)
         .then(res => res.json())
         .then(data => {
+          const statusDiv = document.getElementById("moduleStatus");
           if(data && !data.error){
-            const statusDiv = document.getElementById("moduleStatus");
-            const connected = data.connected ? "Online ✅" : "Offline ❌";
+            deviceOnline = data.connected;
+            const connectedText = deviceOnline ? "Online ✅" : "Offline ❌";
             const lastHeard = data.last_heard || "--";
             const name = data.name || "--";
 
             statusDiv.innerHTML = `
               <b>Name:</b> ${name}<br>
-              <b>Connected:</b> ${connected}<br>
-              <b>Last Heard:</b> ${lastHeard}<br>
+              <b>Connected:</b> ${connectedText}<br>
+              <b>Last Heard:</b> ${lastHeard}
             `;
+          } else {
+            deviceOnline = false;
+            statusDiv.innerHTML = "Device status unavailable.";
           }
+          updateButtonAndState();
         })
         .catch(err => {
+          deviceOnline = false;
           document.getElementById("moduleStatus").innerText = "ERROR:\n" + err;
+          updateButtonAndState();
         });
     }
 
-    // Auto-refresh every few seconds
+    // Fetch gateway battery
+    function fetchGatewayBattery(){
+      fetch(`https://api.particle.io/v1/devices/events/gateway_battery?access_token=${ACCESS_TOKEN}&limit=1`)
+        .then(res=>res.json())
+        .then(data=>{
+          const batteryDiv = document.getElementById("gatewayBattery");
+          if(data && data.body && data.body.length>0){
+            batteryDiv.innerHTML = `<b>Gateway Battery:</b> ${data.body[0].data} %`;
+          } else {
+            batteryDiv.innerHTML = `<b>Gateway Battery:</b> -- %`;
+          }
+        })
+        .catch(err=>{
+          document.getElementById("gatewayBattery").innerText = "Error fetching battery";
+        });
+    }
+
+    // Auto-refresh
     setInterval(fetchBoxLockState, 5000);
     setInterval(fetchModuleStatus, 10000);
+    setInterval(fetchGatewayBattery, 10000);
+
     fetchBoxLockState();
     fetchModuleStatus();
+    fetchGatewayBattery();
   </script>
 </body>
 </html>
