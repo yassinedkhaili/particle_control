@@ -148,9 +148,8 @@
     
     const DEVICE_ID = "e00fce68a0ad7b4549751e82";
     const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60";
-    const FUNCTION_NAME = "LoCK_BOX";
+    const FUNCTION_NAME = "Lock_Box";
     const PAGE_PASSWORD = "Nuwiel 123";
-    
 
     let deviceOnline = false;
 
@@ -187,12 +186,12 @@
       });
     }
 
-    // Toggle Lock/Unlock command (button only sends)
+    // Toggle Lock/Unlock command
     function toggleState(){
       callFunction(FUNCTION_NAME, "toggle");
     }
 
-    // Update BoxLock icon and text based on latest event
+    // Update BoxLock icon and text
     function updateBoxLockState(state){
       const icon = document.getElementById("boxIcon");
       const status = document.getElementById("boxStatus");
@@ -209,7 +208,7 @@
       }
     }
 
-    // Fetch latest BoxLock state from boxlock event
+    // Fetch BoxLock state
     function fetchBoxLockState(){
       fetch(`https://api.particle.io/v1/devices/events/boxlock?access_token=${ACCESS_TOKEN}&limit=1`)
         .then(res => res.json())
@@ -261,21 +260,24 @@
     function fetchBatteryAndTemp(){
       fetch(`https://api.particle.io/v1/devices/events/loc?access_token=${ACCESS_TOKEN}&limit=1`)
         .then(res => res.json())
-        .then(event => {
-          if(event && event.body && event.body.length>0){
-            const dataStr = event.body[0].data;      // string containing JSON
-            const dataJson = JSON.parse(dataStr);    // parse JSON
-            const loc = dataJson.loc;
-
-            if(loc){
-              const batt = loc.batt;
-              const temp = loc.temp;
-              document.getElementById("gatewayBattery").innerText = `Battery: ${batt} %`;
-              document.getElementById("temperature").innerText = `Temp: ${temp} °C`;
+        .then(response => {
+          if(response && response.body && response.body.length > 0) {
+            const eventStr = response.body[0].data;  // JSON string
+            try {
+              const eventJson = JSON.parse(eventStr); // parse string
+              const loc = eventJson.loc;
+              if(loc){
+                const batt = loc.batt;
+                const temp = loc.temp;
+                document.getElementById("gatewayBattery").innerText = `Battery: ${batt} %`;
+                document.getElementById("temperature").innerText = `Temp: ${temp} °C`;
+              }
+            } catch(e){
+              console.error("Failed to parse loc event:", e, eventStr);
             }
           }
         })
-        .catch(err => console.error("Error fetching battery/temp:", err));
+        .catch(err => console.error("Error fetching loc event:", err));
     }
 
     // Auto-refresh
