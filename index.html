@@ -1,287 +1,136 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Secure Particle Dashboard</title>
-  <style>
-    body {
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: #eef2f7;
-      margin: 0;
-      padding: 40px 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-    }
-
-    #loginBox, #controlPanel {
-      background: #ffffff;
-      box-shadow: 0px 5px 20px rgba(0,0,0,0.15);
-      padding: 30px;
-      border-radius: 15px;
-      width: 400px;
-      text-align: center;
-      display: none;
-    }
-
-    #loginBox.active, #controlPanel.active {
-      display: block;
-    }
-
-    h1 {
-      font-size: 24px;
-      margin-bottom: 20px;
-      color: #333;
-    }
-
-    input[type="password"] {
-      width: 90%;
-      padding: 12px;
-      margin: 10px 0;
-      border-radius: 8px;
-      border: 1px solid #bbb;
-      font-size: 16px;
-    }
-
-    .button {
-      background: #0066ff;
-      color: white;
-      padding: 14px 25px;
-      font-size: 18px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    .button:hover {
-      background: #004bcc;
-    }
-
-    .button:disabled {
-      background: #bbb;
-      cursor: not-allowed;
-    }
-
-    #controlHeader {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #ffffff;
-      padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-      gap: 15px;
-    }
-
-    #result {
-      margin-top: 20px;
-      padding: 15px;
-      text-align: left;
-      background: #f7f7f7;
-      border-radius: 10px;
-      font-family: monospace;
-      white-space: pre-wrap;
-      max-height: 250px;
-      overflow-y: auto;
-    }
-
-    #moduleStatus {
-      padding: 15px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-      font-family: monospace;
-      width: 100%;
-      text-align: left;
-      margin-bottom: 20px;
-    }
-
-    @media(max-width:450px){
-      #controlHeader {
-        flex-direction: column;
-      }
-      .button { width: 100%; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Tracker Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #dashboard {
+            background-color: #fff;
+            padding: 20px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        #boxLockStatus {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        #battery {
+            font-size: 18px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: white;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+    </style>
 </head>
 <body>
-
-  <!-- Password Login -->
-  <div id="loginBox" class="active">
-    <h1>Secure Access</h1>
-    <p>Please enter the password:</p>
-    <input id="passwordInput" type="password" placeholder="Password">
-    <button class="button" onclick="checkPassword()">Enter</button>
-    <p id="loginError" style="color:red; margin-top:10px;"></p>
-  </div>
-
-  <!-- Control Panel -->
-  <div id="controlPanel">
-    <h1>Particle Dashboard</h1>
-
-    <div id="controlHeader">
-      <button class="button" id="toggleButton" onclick="toggleState()">Lock/Unlock</button>
-      <div style="display:flex; align-items:center; gap:10px;">
-        <img id="boxIcon" src="https://img.icons8.com/ios-filled/50/000000/lock--v1.png"/>
-        <span id="boxStatus" style="font-size: 18px; font-weight:bold;">--</span>
-      </div>
-      <div id="gatewayBattery"><b>Battery:</b> -- %</div>
-      <div id="temperature"><b>Temp:</b> -- °C</div>
+    <div id="dashboard">
+        <h1>Tracker Dashboard</h1>
+        <div id="header">
+            <div id="boxLockStatus">Lock: --</div>
+            <div id="battery">Battery: --%</div>
+        </div>
+        <button id="lockButton">Toggle Lock</button>
     </div>
 
-    <div id="moduleStatus">
-      Loading module status...
-    </div>
+    <script>
+        const deviceId = "e00fce68a0ad7b4549751e82";  // your device ID
+        const accessToken = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60"; // your Particle access token
+        const lockFunction = "Lock_Box"; // name of your Particle function
+        const eventName = "boxlock"; // name of the event publishing lock status
 
-    <div id="result"></div>
-  </div>
+        const boxLockStatusEl = document.getElementById("boxLockStatus");
+        const batteryEl = document.getElementById("battery");
+        const lockButton = document.getElementById("lockButton");
 
-  <script>
-    
-    const DEVICE_ID = "e00fce68a0ad7b4549751e82";
-    const ACCESS_TOKEN = "c2d7f1b0dc3080a1313040a34f7e0443d2e93b60";
-    const FUNCTION_NAME = "Lock_Box";
-    const PAGE_PASSWORD = "Nuwiel 123";
-
-    let deviceOnline = false;
-
-    // Password check
-    function checkPassword() {
-      const entered = document.getElementById("passwordInput").value;
-      if(entered === PAGE_PASSWORD){
-        document.getElementById("loginBox").classList.remove("active");
-        document.getElementById("controlPanel").classList.add("active");
-      } else {
-        document.getElementById("loginError").innerText = "Incorrect password.";
-      }
-    }
-
-    // Call Particle function
-    function callFunction(funcName, arg){
-      if(!deviceOnline){
-        alert("Device is offline. Cannot send command.");
-        return;
-      }
-      const url = `https://api.particle.io/v1/devices/${DEVICE_ID}/${funcName}`;
-      return fetch(url,{
-        method: "POST",
-        headers: {"Content-Type": "application/x-www-form-urlencoded"},
-        body: `arg=${arg}&access_token=${ACCESS_TOKEN}`
-      })
-      .then(response => response.json())
-      .then(data => {
-        document.getElementById("result").innerText = JSON.stringify(data,null,2);
-        return data;
-      })
-      .catch(err => {
-        document.getElementById("result").innerText = "ERROR:\n" + err;
-      });
-    }
-
-    function toggleState(){
-      callFunction(FUNCTION_NAME, "toggle");
-    }
-
-    function updateBoxLockState(state){
-      const icon = document.getElementById("boxIcon");
-      const status = document.getElementById("boxStatus");
-
-      if(state === "locked"){
-        icon.src = "https://img.icons8.com/ios-filled/50/FF0000/lock--v1.png";
-        status.innerText = "Locked";
-      } else if(state === "unlocked"){
-        icon.src = "https://img.icons8.com/ios-filled/50/00AA00/unlock--v1.png";
-        status.innerText = "Unlocked";
-      } else {
-        icon.src = "https://img.icons8.com/ios-filled/50/000000/lock--v1.png";
-        status.innerText = "--";
-      }
-    }
-
-    // Fetch latest boxlock state
-    function fetchBoxLockState(){
-      fetch(`https://api.particle.io/v1/devices/events/boxlock?access_token=${ACCESS_TOKEN}&limit=1`)
-        .then(res => res.json())
-        .then(event => {
-          if(event && event.data){
-            const latest = event.data;
-            updateBoxLockState(latest);
-          } else {
-            updateBoxLockState("--");
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          updateBoxLockState("--");
-        });
-    }
-
-    // Fetch module status
-    function fetchModuleStatus(){
-      fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}?access_token=${ACCESS_TOKEN}`)
-        .then(res => res.json())
-        .then(data => {
-          const statusDiv = document.getElementById("moduleStatus");
-          if(data && !data.error){
-            deviceOnline = data.connected;
-            const connectedText = deviceOnline ? "Online ✅" : "Offline ❌";
-            const lastHeard = data.last_heard || "--";
-            const name = data.name || "--";
-
-            statusDiv.innerHTML = `
-              <b>Name:</b> ${name}<br>
-              <b>Connected:</b> ${connectedText}<br>
-              <b>Last Heard:</b> ${lastHeard}
-            `;
-          } else {
-            deviceOnline = false;
-            statusDiv.innerHTML = "Device status unavailable.";
-          }
-          document.getElementById("toggleButton").disabled = !deviceOnline;
-        })
-        .catch(err => {
-          deviceOnline = false;
-          document.getElementById("moduleStatus").innerText = "ERROR:\n" + err;
-          document.getElementById("toggleButton").disabled = true;
-        });
-    }
-
-    // Fetch battery and temperature from loc event
-    function fetchBatteryAndTemp(){
-      fetch(`https://api.particle.io/v1/devices/events/loc?access_token=${ACCESS_TOKEN}&limit=1`)
-        .then(res => res.json())
-        .then(event => {
-          if(event && event.data){
+        // Fetch battery level from cloud variable
+        async function fetchBattery() {
             try {
-              const parsed = JSON.parse(event.data); // parse inner JSON string
-              if(parsed.loc){
-                const batt = parsed.loc.batt;
-                const temp = parsed.loc.temp;
-                document.getElementById("gatewayBattery").innerText = `Battery: ${batt} %`;
-                document.getElementById("temperature").innerText = `Temp: ${temp} °C`;
-              }
-            } catch(e){
-              console.error("Failed to parse loc event:", e, event.data);
+                const response = await fetch(`https://api.particle.io/v1/devices/${deviceId}/batteryLevel?access_token=${accessToken}`);
+                const data = await response.json();
+                if(data && data.result !== undefined){
+                    batteryEl.textContent = "Battery: " + data.result.toFixed(1) + "%";
+                } else {
+                    batteryEl.textContent = "Battery: --%";
+                }
+            } catch (err) {
+                batteryEl.textContent = "Battery: --%";
             }
-          }
-        })
-        .catch(err => console.error("Error fetching loc event:", err));
-    }
+        }
 
-    // Auto-refresh
-    setInterval(fetchBoxLockState, 5000);
-    setInterval(fetchModuleStatus, 10000);
-    setInterval(fetchBatteryAndTemp, 10000);
+        // Call Lock_Box function
+        async function toggleLock() {
+            lockButton.disabled = true;
+            try {
+                const response = await fetch(`https://api.particle.io/v1/devices/${deviceId}/${lockFunction}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `arg=toggle&access_token=${accessToken}`
+                });
+                const data = await response.json();
+                console.log("Lock function response:", data);
+            } catch (err) {
+                console.error("Error calling lock function:", err);
+            } finally {
+                lockButton.disabled = false;
+            }
+        }
 
-    // Initial fetch
-    fetchBoxLockState();
-    fetchModuleStatus();
-    fetchBatteryAndTemp();
-  </script>
+        lockButton.addEventListener("click", toggleLock);
 
+        // Subscribe to boxlock events (via Particle cloud server-sent events)
+        function subscribeBoxLock() {
+            const source = new EventSource(`https://api.particle.io/v1/devices/events/${eventName}?access_token=${accessToken}`);
+            source.onmessage = function(e) {
+                try {
+                    const obj = JSON.parse(e.data);
+                    if(obj && obj.data){
+                        const data = JSON.parse(obj.data);
+                        const lock = data.lck !== undefined ? data.lck : data.loc?.lck;
+                        if(lock !== undefined){
+                            boxLockStatusEl.textContent = "Lock: " + (lock ? "Locked" : "Unlocked");
+                        }
+                    }
+                } catch(err) {
+                    console.error("Error parsing boxlock event:", err);
+                }
+            };
+        }
+
+        // Initial battery fetch
+        fetchBattery();
+        // Update battery every 10s
+        setInterval(fetchBattery, 10000);
+
+        // Start boxlock event subscription
+        subscribeBoxLock();
+    </script>
 </body>
 </html>
