@@ -100,7 +100,6 @@
       margin-bottom: 20px;
     }
 
-    /* Responsive */
     @media(max-width:450px){
       #controlHeader {
         flex-direction: column;
@@ -124,7 +123,6 @@
   <div id="controlPanel">
     <h1>Particle Dashboard</h1>
 
-    <!-- Unified Header: Lock button + BoxLock + Battery + Temp -->
     <div id="controlHeader">
       <button class="button" id="toggleButton" onclick="toggleState()">Lock/Unlock</button>
       <div style="display:flex; align-items:center; gap:10px;">
@@ -135,12 +133,10 @@
       <div id="temperature"><b>Temp:</b> -- °C</div>
     </div>
 
-    <!-- Module Status -->
     <div id="moduleStatus">
       Loading module status...
     </div>
 
-    <!-- Result/Response -->
     <div id="result"></div>
   </div>
 
@@ -186,12 +182,10 @@
       });
     }
 
-    // Toggle Lock/Unlock command
     function toggleState(){
       callFunction(FUNCTION_NAME, "toggle");
     }
 
-    // Update BoxLock icon and text
     function updateBoxLockState(state){
       const icon = document.getElementById("boxIcon");
       const status = document.getElementById("boxStatus");
@@ -208,13 +202,13 @@
       }
     }
 
-    // Fetch BoxLock state
+    // Fetch latest boxlock state
     function fetchBoxLockState(){
       fetch(`https://api.particle.io/v1/devices/events/boxlock?access_token=${ACCESS_TOKEN}&limit=1`)
         .then(res => res.json())
-        .then(data => {
-          if(data && data.body && data.body.length>0){
-            const latest = data.body[0].data; // "locked" or "unlocked"
+        .then(event => {
+          if(event && event.data){
+            const latest = event.data;
             updateBoxLockState(latest);
           } else {
             updateBoxLockState("--");
@@ -226,7 +220,7 @@
         });
     }
 
-    // Fetch module/device status
+    // Fetch module status
     function fetchModuleStatus(){
       fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}?access_token=${ACCESS_TOKEN}`)
         .then(res => res.json())
@@ -256,24 +250,22 @@
         });
     }
 
-    // Fetch battery and temperature from latest loc event
+    // Fetch battery and temperature from loc event
     function fetchBatteryAndTemp(){
       fetch(`https://api.particle.io/v1/devices/events/loc?access_token=${ACCESS_TOKEN}&limit=1`)
         .then(res => res.json())
-        .then(response => {
-          if(response && response.body && response.body.length > 0) {
-            const eventStr = response.body[0].data;  // JSON string
+        .then(event => {
+          if(event && event.data){
             try {
-              const eventJson = JSON.parse(eventStr); // parse string
-              const loc = eventJson.loc;
-              if(loc){
-                const batt = loc.batt;
-                const temp = loc.temp;
+              const parsed = JSON.parse(event.data); // parse inner JSON string
+              if(parsed.loc){
+                const batt = parsed.loc.batt;
+                const temp = parsed.loc.temp;
                 document.getElementById("gatewayBattery").innerText = `Battery: ${batt} %`;
                 document.getElementById("temperature").innerText = `Temp: ${temp} °C`;
               }
             } catch(e){
-              console.error("Failed to parse loc event:", e, eventStr);
+              console.error("Failed to parse loc event:", e, event.data);
             }
           }
         })
@@ -289,7 +281,7 @@
     fetchBoxLockState();
     fetchModuleStatus();
     fetchBatteryAndTemp();
-
   </script>
+
 </body>
 </html>
