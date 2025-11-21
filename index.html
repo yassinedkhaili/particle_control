@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <title>Secure Particle Dashboard</title>
+
+  <!-- Leaflet Map Library -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
     body {
       font-family: "Segoe UI", Arial, sans-serif;
@@ -100,6 +105,14 @@
       margin-bottom: 20px;
     }
 
+    #map {
+      width: 100%;
+      height: 300px;
+      border-radius: 12px;
+      margin-top: 20px;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+    }
+
     @media(max-width:450px){
       #controlHeader {
         flex-direction: column;
@@ -110,7 +123,7 @@
 </head>
 <body>
 
-  <!-- Password Login -->
+  <!-- PASSWORD LOGIN -->
   <div id="loginBox" class="active">
     <h1>Secure Access</h1>
     <p>Please enter the password:</p>
@@ -119,22 +132,25 @@
     <p id="loginError" style="color:red; margin-top:10px;"></p>
   </div>
 
-  <!-- Control Panel -->
+  <!-- CONTROL PANEL -->
   <div id="controlPanel">
     <h1>Particle Dashboard</h1>
 
     <div id="controlHeader">
       <button class="button" id="toggleButton" onclick="toggleState()">Lock/Unlock</button>
+
       <div style="display:flex; align-items:center; gap:10px;">
         <img id="boxIcon" src="https://img.icons8.com/ios-filled/50/000000/lock--v1.png"/>
         <span id="boxStatus" style="font-size: 18px; font-weight:bold;">--</span>
       </div>
+
       <div id="gatewayBattery"><b>Battery:</b> -- %</div>
     </div>
 
-    <div id="moduleStatus">
-      Loading module status...
-    </div>
+    <div id="moduleStatus">Loading module status...</div>
+
+    <h2>Live Location</h2>
+    <div id="map">Loading map...</div>
 
     <div id="result"></div>
   </div>
@@ -147,10 +163,10 @@
 
     let deviceOnline = false;
 
-    // Password check
+    // PASSWORD CHECK
     function checkPassword() {
       const entered = document.getElementById("passwordInput").value;
-      if(entered === PAGE_PASSWORD){
+      if (entered === PAGE_PASSWORD) {
         document.getElementById("loginBox").classList.remove("active");
         document.getElementById("controlPanel").classList.add("active");
       } else {
@@ -158,9 +174,9 @@
       }
     }
 
-    // Call Particle function
+    // PARTICLE FUNCTION CALL
     function callFunction(funcName, arg){
-      if(!deviceOnline){
+      if (!deviceOnline) {
         alert("Device is offline. Cannot send command.");
         return;
       }
@@ -173,7 +189,6 @@
       .then(response => response.json())
       .then(data => {
         document.getElementById("result").innerText = JSON.stringify(data,null,2);
-        return data;
       })
       .catch(err => {
         document.getElementById("result").innerText = "ERROR:\n" + err;
@@ -188,10 +203,10 @@
       const icon = document.getElementById("boxIcon");
       const status = document.getElementById("boxStatus");
 
-      if(state === true || state === 1){
+      if (state === true || state === 1){
         icon.src = "https://img.icons8.com/ios-filled/50/FF0000/lock--v1.png";
         status.innerText = "Locked";
-      } else if(state === false || state === 0){
+      } else if (state === false || state === 0){
         icon.src = "https://img.icons8.com/ios-filled/50/00AA00/unlock--v1.png";
         status.innerText = "Unlocked";
       } else {
@@ -200,12 +215,12 @@
       }
     }
 
-    // Fetch box lock state from Particle variable
+    // FETCH BOXLOCK VARIABLE
     function fetchBoxLockState(){
       fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}/boxLock?access_token=${ACCESS_TOKEN}`)
         .then(res => res.json())
         .then(data => {
-          if(data && data.result !== undefined){
+          if (data && data.result !== undefined){
             updateBoxLockState(data.result);
           } else {
             updateBoxLockState("--");
@@ -217,7 +232,21 @@
         });
     }
 
-    // Fetch module status
+    // FETCH BATTERY VARIABLE
+    function fetchBatteryLevel(){
+      fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}/batteryLevel?access_token=${ACCESS_TOKEN}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.result !== undefined){
+            document.getElementById("gatewayBattery").innerText = `Battery: ${data.result.toFixed(1)} %`;
+          } else {
+            document.getElementById("gatewayBattery").innerText = "Battery: -- %";
+          }
+        })
+        .catch(err => console.error("Error fetching battery:", err));
+    }
+
+    // FETCH MODULE STATUS
     function fetchModuleStatus(){
       fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}?access_token=${ACCESS_TOKEN}`)
         .then(res => res.json())
@@ -247,31 +276,51 @@
         });
     }
 
-    // Fetch battery level from Particle variable
-    function fetchBatteryLevel(){
-      fetch(`https://api.particle.io/v1/devices/${DEVICE_ID}/batteryLevel?access_token=${ACCESS_TOKEN}`)
-        .then(res => res.json())
-        .then(data => {
-          if(data && data.result !== undefined){
-            document.getElementById("gatewayBattery").innerText = `Battery: ${data.result.toFixed(1)} %`;
+    // MAP INITIALIZATION
+    let map = L.map('map').setView([0, 0], 2);
+    let marker = null;
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+    }).addTo(map);
+
+    function updateMap() {
+      const urlLat = `https://api.particle.io/v1/devices/${DEVICE_ID}/lat?access_token=${ACCESS_TOKEN}`;
+      const urlLon = `https://api.particle.io/v1/devices/${DEVICE_ID}/lon?access_token=${ACCESS_TOKEN}`;
+
+      Promise.all([
+        fetch(urlLat).then(r => r.json()),
+        fetch(urlLon).then(r => r.json())
+      ])
+      .then(([latData, lonData]) => {
+        if (latData.result !== undefined && lonData.result !== undefined) {
+          const lat = latData.result;
+          const lon = lonData.result;
+
+          if (!marker) {
+            marker = L.marker([lat, lon]).addTo(map);
           } else {
-            document.getElementById("gatewayBattery").innerText = "Battery: -- %";
+            marker.setLatLng([lat, lon]);
           }
-        })
-        .catch(err => console.error("Error fetching battery:", err));
+
+          map.setView([lat, lon], 15);
+        }
+      })
+      .catch(err => console.error("Map update error:", err));
     }
 
-    // Auto-refresh
+    // AUTO UPDATE INTERVALS
     setInterval(fetchBoxLockState, 5000);
     setInterval(fetchModuleStatus, 10000);
     setInterval(fetchBatteryLevel, 10000);
+    setInterval(updateMap, 10000);
 
-    // Initial fetch
+    // INITIAL LOAD
     fetchBoxLockState();
     fetchModuleStatus();
     fetchBatteryLevel();
+    updateMap();
 
   </script>
-
 </body>
 </html>
